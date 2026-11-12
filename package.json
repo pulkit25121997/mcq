@@ -1,0 +1,20 @@
+{
+  "name": "orbit-qbank-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "On-device PWA and Android wrapper for a unified MCQ study workspace",
+  "scripts": {
+    "test": "node tests/import-flow.cjs",
+    "test:webkit": "ENGINE=webkit node tests/import-flow.cjs",
+    "test:full-import": "FILES=old_corebtr-1.html,image_only_marrow_qb.html,COREBTR_Questions_BANKS.html,cerebellum_Qbank.html,marrow_qb.html,marrow_Previous_Year_Question_Papers.html,core_btr_tests.html SKIP_FLOW=1 node tests/import-flow.cjs",
+    "android": "npx cap sync android"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
+    "playwright": "^1.56.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "Orbit Qbank",
+  "short_name": "Orbit",
+  "description": "Practice MCQs from all your imported question banks, with custom modules, bookmarks and a mistake notebook.",
+  "id": "./",
+  "start_url": "./#dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6f5fb",
+  "theme_color": "#6554d9",
+  "categories": ["education", "medical"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
