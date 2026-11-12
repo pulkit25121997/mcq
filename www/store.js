@@ -212,9 +212,9 @@ const OrbitStore = (() => {
     return q;
   }
   const randomId = () => [...crypto.getRandomValues(new Uint8Array(12))].map(b => b.toString(16).padStart(2, "0")).join("");
-  async function createSession(data) {
+  async function createSession(data, originalIds) {
     const filters = data.filters || {};
-    const ids = pool(filters);
+    const ids = originalIds ? [...originalIds] : pool(filters);
     if (!ids.length) throw new UserError("No questions match these filters. Change your selections.");
     const count = int(data.count ?? 40, "Question count", 1, ids.length);
     const mode = data.mode || "tutor";
@@ -486,7 +486,10 @@ const OrbitStore = (() => {
         const sources = new Set(strings(filters.sources, "sources")), subjects = new Set(strings(filters.subjects, "subjects"));
         const all = [...M.modules.values()];
         return { topics: all.filter(m => (!sources.size || sources.has(m.source_id)) && (!subjects.size || subjects.has(m.subject)))
-          .map(({ id, title, subject, topic, source_id }) => ({ id, title, subject, topic, source_id }))
+          .map(({ id, title, subject, topic, source_id, qids }) => ({
+            id, title, subject, topic, source_id, count: qids.length,
+            attempted: qids.filter(qid => M.state.get(qid)?.attempts).length,
+          }))
           .sort((a, b) => a.subject.localeCompare(b.subject) || a.title.localeCompare(b.title)),
           years: [...new Set(all.map(m => m.year).filter(Boolean))].sort().reverse() };
       }
@@ -505,6 +508,18 @@ const OrbitStore = (() => {
       if (!data || typeof data !== "object") throw new UserError("Request body must be an object.");
       if (p === "/api/pool") return { count: pool(data.filters || {}).length };
       if (p === "/api/sessions") return createSession(data);
+      const original = p.match(/^\/api\/modules\/([a-f0-9]+)\/start$/);
+      if (original) {
+        const module = M.modules.get(original[1]);
+        if (!module) throw new UserError("This test is no longer imported.");
+        const saved = [...M.sessions.values()].filter(s => s.filters?.original_module === module.id && s.status !== "completed")
+          .sort((a, b) => b.started_at - a.started_at)[0];
+        if (saved) return sessionView(await expire(saved));
+        return createSession({
+          title: module.title.slice(0, 140), count: module.qids.length, shuffle: false,
+          filters: { topics: [module.id], original_module: module.id },
+        }, module.qids);
+      }
       if (p === "/api/restore") return restore(data);
       let match = p.match(/^\/api\/questions\/([a-f0-9]+)\/state$/);
       if (match) return saveState(match[1], data);

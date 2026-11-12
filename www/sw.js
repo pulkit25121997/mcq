@@ -1,5 +1,5 @@
 "use strict";
-const CACHE = "orbit-shell-v1";
+const CACHE = "orbit-shell-v2";
 const SHELL = ["./", "index.html", "styles.css", "importer.js", "store.js", "app.js", "pwa.js", "favicon.svg", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-touch-icon.png"];
 

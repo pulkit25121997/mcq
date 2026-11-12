@@ -79,10 +79,10 @@ async function refreshSummary() {
   document.querySelector("#mistake-count").textContent = fmt(S.summary.mistakes);
 }
 function sourceRows() {
-  return S.summary.sources.map(s => `<div class="source-row"><span class="platform-icon ${platformClass(s.platform)}">${esc(s.platform[0])}</span><div class="source-info"><div class="source-name">${esc(s.name)}</div><div class="source-detail">${fmt(s.tests)} original modules &middot; ${fmt(s.entries)} source entries</div></div><span class="source-count">${fmt(s.question_count)} <small class="muted">MCQs</small></span>${button("Practice", "source", `data-id="${s.id}"`, "small", "arrow")}</div>`).join("");
+  return S.summary.sources.map(s => `<div class="source-row"><span class="platform-icon ${platformClass(s.platform)}">${esc(s.platform[0])}</span><div class="source-info"><div class="source-name">${esc(s.name)}</div><div class="source-detail">${fmt(s.tests)} original modules &middot; ${fmt(s.entries)} source entries</div></div><span class="source-count">${fmt(s.question_count)} <small class="muted">MCQs</small></span>${button("Browse tests", "source", `data-id="${s.id}"`, "small", "arrow")}</div>`).join("");
 }
 
-function dashboard() {
+async function dashboard() {
   const d = S.summary;
   const activity = new Map(d.activity.map(day => [day.day, day.answers]));
   const maxActivity = Math.max(1, ...d.activity.map(day => day.answers));
@@ -94,13 +94,13 @@ function dashboard() {
     return `<div class="activity-col" title="${now.toISOString().slice(0, 10)}: ${count} answers"><span class="activity-bar"><svg viewBox="0 0 20 52" aria-hidden="true"><rect x="0" y="${52 - height}" width="20" height="${height}" fill="currentColor" rx="3"/></svg></span><small>${now.toLocaleDateString(undefined, { weekday: "narrow", timeZone: "UTC" })}</small></div>`;
   }).join("");
   main.innerHTML = heading("Make every question count.", "One focused workspace. All your question banks. A little better, every day.",
-    `<a class="button primary" href="#builder">${icon("plus")} Create custom module</a>`, "YOUR STUDY SPACE")
+    `<a class="button primary" href="#tests">${icon("library")} Browse tests</a>`, "YOUR STUDY SPACE")
     + `<div class="stats-grid">${stat("Questions in your library", fmt(d.total), `${fmt(d.sources.length)} banks · ${fmt(d.module_count)} modules`, "library")}
       ${stat("Questions attempted", fmt(d.attempted), `${percent(d.attempted, d.total)}% of your library explored`, "check", "green")}
       ${stat("Latest-answer accuracy", d.attempted ? `${percent(d.correct, d.attempted)}%` : "--", d.attempted ? `${fmt(d.correct)} currently correct` : "Your first answer starts the story", "target", "amber")}
       ${stat("Mistakes to revisit", fmt(d.mistakes), "A correct retry clears a mistake", "refresh", "red")}</div>
       <div class="dashboard-layout"><div>
-        <div class="hero"><div><div class="eyebrow">PRACTICE, YOUR WAY</div><h2>A module that meets you<br>where you are.</h2><p>Mix platforms, choose your subjects, or give your bookmarked and missed questions another go.</p><a class="button primary" href="#builder">Build a custom module ${icon("arrow")}</a></div><div class="hero-visual" aria-hidden="true"><span>?</span></div></div>
+        <section class="panel" id="dashboard-tests"></section>
         <section class="panel"><div class="panel-heading"><div><h2>Your question banks</h2><p class="section-caption">Different platforms. One familiar practice experience.</p></div><a href="#library">Browse library ${icon("arrow")}</a></div>${sourceRows()}</section>
         <section class="panel"><div class="panel-heading"><h2>Pick up where you left off</h2><a href="#history">All sessions ${icon("arrow")}</a></div>${sessionRows(d.recent_sessions.slice(0, 4))}</section>
       </div><aside class="dashboard-aside">
@@ -108,6 +108,39 @@ function dashboard() {
         <section class="panel"><h2>Your revision corner</h2><p class="section-caption">Turn a second look into a stronger memory.</p><a class="revision-tile" href="#bookmarks"><div class="tile-top">${icon("bookmark")} Saved for later</div><strong>${fmt(d.bookmarks)}</strong><p>Revisit your bookmarked questions ${icon("arrow")}</p></a><a class="revision-tile" href="#mistakes"><div class="tile-top">${icon("refresh")} Learn from mistakes</div><strong>${fmt(d.mistakes)}</strong><p>Retry questions last answered incorrectly ${icon("arrow")}</p></a></section>
         <section class="panel"><h3>A little progress, daily.</h3><p class="section-caption">Library completion</p><progress value="${d.attempted}" max="${d.total || 1}" aria-label="Library completion"></progress><div class="progress-label"><span>${fmt(d.attempted)} attempted</span><strong>${percent(d.attempted, d.total)}%</strong></div><p class="section-caption">Matching questions within the same platform share progress, even across banks.</p></section>
       </aside></div>`;
+  await testBrowser(document.querySelector("#dashboard-tests"));
+}
+
+async function testBrowser(container, source = "") {
+  const sequence = S.routeSeq;
+  const { topics } = await api("/api/topics");
+  if (sequence !== S.routeSeq || !container?.isConnected) return;
+  container.innerHTML = `<h2>Browse original tests</h2><p class="section-caption">Open a test directly in tutor mode, in its original question order. Unfinished tests open where you left off.</p>
+    <div class="form-grid"><div class="field"><label for="test-source">Question bank</label><select id="test-source"><option value="">All banks</option>${S.summary.sources.map(s => `<option value="${s.id}" ${source === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></div>
+    <div class="field"><label for="test-subject">Subject</label><select id="test-subject"><option value="">All subjects</option>${S.summary.subjects.map(s => `<option>${esc(s.subject)}</option>`).join("")}</select></div></div>
+    <div class="field"><label for="test-search">Find a test or topic</label><input id="test-search" type="search" placeholder="Search original test names..."></div><div id="test-list" aria-live="polite"></div>`;
+  let offset = 0;
+  function render() {
+    const bank = container.querySelector("#test-source").value;
+    const subject = container.querySelector("#test-subject").value;
+    const term = container.querySelector("#test-search").value.trim().toLowerCase();
+    const chosen = topics.filter(t => (!bank || t.source_id === bank) && (!subject || t.subject === subject)
+      && (!term || `${t.title} ${t.topic}`.toLowerCase().includes(term)));
+    const list = container.querySelector("#test-list");
+    list.innerHTML = `<p class="section-caption">${fmt(chosen.length)} tests</p>` + chosen.slice(offset, offset + 30).map(t => {
+      const bankName = S.summary.sources.find(s => s.id === t.source_id)?.name || "";
+      return `<article class="session-row"><div><h3>${esc(t.title)}</h3><p>${esc(bankName)} &middot; ${esc(t.subject)} &middot; ${fmt(t.count)} questions</p><p>${fmt(t.attempted)} previously attempted</p></div>${button("Open test", "open-test", `data-id="${t.id}" ${t.count ? "" : "disabled"}`, "small", "play")}</article>`;
+    }).join("") + (chosen.length ? pagination({ total: chosen.length, offset }, "tests-page") : '<p class="notice">No tests match. Try another bank, subject or search.</p>');
+  }
+  container.addEventListener("input", event => {
+    if (event.target.matches("#test-source, #test-subject, #test-search")) { offset = 0; render(); }
+  });
+  container.addEventListener("click", event => {
+    const target = event.target.closest('[data-action="tests-page"]');
+    if (!target || target.disabled) return;
+    event.stopPropagation(); offset = Number(target.dataset.offset); render();
+  });
+  render();
 }
 
 function library() {
@@ -478,7 +511,7 @@ async function route() {
   if (page !== "session" && page !== "results") { S.session = null; S.question = null; }
   document.querySelector("#sidebar").classList.remove("open");
   document.querySelectorAll("[data-nav]").forEach(e => e.classList.toggle("active", e.dataset.nav === page || (e.dataset.nav === "history" && ["session", "results"].includes(page))));
-  const names = { dashboard: "Overview", library: "Question library", builder: "Custom modules", bookmarks: "Bookmarks", mistakes: "Mistake notebook", history: "Session history", session: "Practice", results: "Session results", settings: "Data & settings", import: "Import banks" };
+  const names = { dashboard: "Overview", library: "Question library", tests: "Original tests", builder: "Custom modules", bookmarks: "Bookmarks", mistakes: "Mistake notebook", history: "Session history", session: "Practice", results: "Session results", settings: "Data & settings", import: "Import banks" };
   document.querySelector("#breadcrumb").textContent = `Workspace / ${names[page] || "Overview"}`;
   main.innerHTML = '<div class="loading"><span class="spinner"></span>Loading your workspace...</div>';
   await refreshSummary();
@@ -487,7 +520,11 @@ async function route() {
     main.innerHTML = empty("Your library is ready to fill", "Import your HTML question-bank files from Files, Downloads or iCloud Drive. They are processed and stored only on this device.", "upload", '<a class="button primary" href="#import">Import question banks</a>');
     return;
   }
-  if (page === "dashboard") dashboard();
+  if (page === "dashboard") await dashboard();
+  else if (page === "tests") {
+    main.innerHTML = heading("Your original tests.", "Browse a bank, choose a subject and open a test. No custom module setup needed.") + '<section class="panel" id="original-tests"></section>';
+    await testBrowser(document.querySelector("#original-tests"), id || "");
+  }
   else if (page === "library") library();
   else if (page === "builder") { const preset = S.builderPreset || {}; S.builderPreset = null; builder(preset); }
   else if (page === "bookmarks" || page === "mistakes") { S.collectionOffset = 0; S.collectionSearch = ""; await collection(page === "bookmarks" ? "bookmarked" : "incorrect"); }
@@ -524,7 +561,11 @@ document.addEventListener("click", event => {
   safe(async () => {
     try {
       if (action === "retry-load") await route();
-      else if (action === "source") openBuilder({ sources: [target.dataset.id] });
+      else if (action === "source") location.hash = `tests/${target.dataset.id}`;
+      else if (action === "open-test") {
+        const session = await api(`/api/modules/${target.dataset.id}/start`, {});
+        location.hash = `${session.status === "completed" ? "results" : "session"}/${session.id}`;
+      }
       else if (action === "subject") openBuilder({ subjects: [target.dataset.subject] });
       else if (action === "new-module") openBuilder({});
       else if (action === "revision") openBuilder({ status: target.dataset.kind });
