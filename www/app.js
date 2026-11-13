@@ -115,7 +115,7 @@ async function testBrowser(container, source = "") {
   const sequence = S.routeSeq;
   const { topics } = await api("/api/topics");
   if (sequence !== S.routeSeq || !container?.isConnected) return;
-  container.innerHTML = `<h2>Browse original tests</h2><p class="section-caption">Open a test directly in tutor mode, in its original question order. Unfinished tests open where you left off.</p>
+  container.innerHTML = `<h2>Browse original tests</h2><p class="section-caption">Choose tutor mode to check answers as you go, or exam mode to review them after submission. Questions stay in their original order; unfinished tests resume in the selected mode.</p>
     <div class="form-grid"><div class="field"><label for="test-source">Question bank</label><select id="test-source"><option value="">All banks</option>${S.summary.sources.map(s => `<option value="${s.id}" ${source === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></div>
     <div class="field"><label for="test-subject">Subject</label><select id="test-subject"><option value="">All subjects</option>${S.summary.subjects.map(s => `<option>${esc(s.subject)}</option>`).join("")}</select></div></div>
     <div class="field"><label for="test-search">Find a test or topic</label><input id="test-search" type="search" placeholder="Search original test names..."></div><div id="test-list" aria-live="polite"></div>`;
@@ -129,7 +129,7 @@ async function testBrowser(container, source = "") {
     const list = container.querySelector("#test-list");
     list.innerHTML = `<p class="section-caption">${fmt(chosen.length)} tests</p>` + chosen.slice(offset, offset + 30).map(t => {
       const bankName = S.summary.sources.find(s => s.id === t.source_id)?.name || "";
-      return `<article class="session-row"><div><h3>${esc(t.title)}</h3><p>${esc(bankName)} &middot; ${esc(t.subject)} &middot; ${fmt(t.count)} questions</p><p>${fmt(t.attempted)} previously attempted</p></div>${button("Open test", "open-test", `data-id="${t.id}" ${t.count ? "" : "disabled"}`, "small", "play")}</article>`;
+      return `<article class="session-row"><div><h3>${esc(t.title)}</h3><p>${esc(bankName)} &middot; ${esc(t.subject)} &middot; ${fmt(t.count)} questions</p><p>${fmt(t.attempted)} previously attempted</p></div><div class="badge-row">${button("Tutor mode", "open-test", `data-id="${t.id}" data-mode="tutor" ${t.count ? "" : "disabled"} aria-label="Tutor mode: ${esc(t.title)}"`, "small", "play")}${button("Exam mode", "open-test", `data-id="${t.id}" data-mode="exam" ${t.count ? "" : "disabled"} aria-label="Exam mode: ${esc(t.title)}"`, "small", "play")}</div></article>`;
     }).join("") + (chosen.length ? pagination({ total: chosen.length, offset }, "tests-page") : '<p class="notice">No tests match. Try another bank, subject or search.</p>');
   }
   container.addEventListener("input", event => {
@@ -563,7 +563,7 @@ document.addEventListener("click", event => {
       if (action === "retry-load") await route();
       else if (action === "source") location.hash = `tests/${target.dataset.id}`;
       else if (action === "open-test") {
-        const session = await api(`/api/modules/${target.dataset.id}/start`, {});
+        const session = await api(`/api/modules/${target.dataset.id}/start`, { mode: target.dataset.mode });
         location.hash = `${session.status === "completed" ? "results" : "session"}/${session.id}`;
       }
       else if (action === "subject") openBuilder({ subjects: [target.dataset.subject] });

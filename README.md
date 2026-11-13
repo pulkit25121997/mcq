@@ -2,7 +2,7 @@
 
 Orbit is a private, on-device study app for importing HTML MCQ exports and practising them together. It includes custom modules, tutor and exam modes, bookmarks, a mistake notebook, notes, session review and progress backups.
 
-Browse original tests directly on the dashboard or under **Original tests**. Filter by bank and subject, search test names, and tap **Open test** to practise the entire test in its original question order without configuring a custom module. Opening an unfinished test returns to the saved session; after completion, opening it starts a fresh attempt. Custom modules remain available separately.
+Browse original tests directly on the dashboard or under **Original tests**. Filter by bank and subject, search test names, and choose **Tutor mode** or **Exam mode** to practise the entire test in its original question order without configuring a custom module. Tutor mode checks answers as you go; exam mode reveals them on submission. Each mode resumes its own unfinished session; after completion, choosing it starts a fresh attempt. Custom modules remain available separately.
 
 The website and Android package contain **only app code**. Import your own HTML files in the app; no question banks or progress are uploaded to a server. Images and video links embedded in the original exports may still require internet or original-platform access.
 

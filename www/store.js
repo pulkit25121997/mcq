@@ -512,11 +512,13 @@ const OrbitStore = (() => {
       if (original) {
         const module = M.modules.get(original[1]);
         if (!module) throw new UserError("This test is no longer imported.");
-        const saved = [...M.sessions.values()].filter(s => s.filters?.original_module === module.id && s.status !== "completed")
+        const mode = data.mode ?? "tutor";
+        if (!["tutor", "exam"].includes(mode)) throw new UserError("Choose tutor or exam mode.");
+        const saved = [...M.sessions.values()].filter(s => s.filters?.original_module === module.id && s.mode === mode && s.status !== "completed")
           .sort((a, b) => b.started_at - a.started_at)[0];
         if (saved) return sessionView(await expire(saved));
         return createSession({
-          title: module.title.slice(0, 140), count: module.qids.length, shuffle: false,
+          title: module.title.slice(0, 140), count: module.qids.length, shuffle: false, mode,
           filters: { topics: [module.id], original_module: module.id },
         }, module.qids);
       }
